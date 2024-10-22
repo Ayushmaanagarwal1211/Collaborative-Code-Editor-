@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import Client from "./Client";
 import Editor from "./Editor";
 import { initSocket } from "../Socket";
-import { ACTIONS } from "../Actions";
 import {
   useNavigate,
   useLocation,
@@ -33,39 +32,41 @@ function EditorPage() {
   const { roomId } = useParams();
 
   const socketRef = useRef(null);
-
+let [load,setLoad]=useState(true)
   useEffect(() => {
     const init = async () => {
       socketRef.current = await initSocket();
       socketRef.current.on("connect_error", (err) => handleErrors(err));
       socketRef.current.on("connect_failed", (err) => handleErrors(err));
-
+      
       const handleErrors = (err) => {
         console.log("Error", err);
         toast.error("Socket connection failed, Try again later");
         navigate("/");
       };
-
-      socketRef.current.emit(ACTIONS.JOIN, {
+      
+      socketRef.current.emit("join", {
         roomId,
         username: Location.state?.username,
       });
-
+      
       socketRef.current.on(
-        ACTIONS.JOINED,
+        "joined",
         ({ clients, username, socketId }) => {
           if (username !== Location.state?.username) {
             toast.success(`${username} joined the room.`);
           }
+          setLoad(false)
+
           setClients(clients);
-          socketRef.current.emit(ACTIONS.SYNC_CODE, {
+          socketRef.current.emit("sync-code", {
             code: codeRef.current,
             socketId,
           });
         }
       );
-
-      socketRef.current.on(ACTIONS.DISCONNECTED, ({ socketId, username }) => {
+      
+      socketRef.current.on("disconnected", ({ socketId, username }) => {
         toast.success(`${username} left the room`);
         setClients((prev) => {
           return prev.filter((client) => client.socketId !== socketId);
@@ -73,11 +74,11 @@ function EditorPage() {
       });
     };
     init();
-
+    
     return () => {
       socketRef.current && socketRef.current.disconnect();
-      socketRef.current.off(ACTIONS.JOINED);
-      socketRef.current.off(ACTIONS.DISCONNECTED);
+      socketRef.current.off("joined");
+      socketRef.current.off("disconnected");
     };
   }, []);
 
@@ -102,7 +103,7 @@ function EditorPage() {
   const runCode = async () => {
     setIsCompiling(true);
     try {
-      const response = await axios.post("http://localhost:5000/compile", {
+      const response = await axios.post("https://editor-backend-12.onrender.com/compile", {
         code: codeRef.current,
         language: selectedLanguage,
       });
@@ -122,28 +123,26 @@ function EditorPage() {
   };
 
   return (
-    <div className="container-fluid vh-100 d-flex flex-column">
+    <>
+    {
+      load &&  <div className="flex  fixed bg-black w-[100vw] opacity-75 z-[1000] h-[100vh] items-center justify-center">
+      <div className="animate-spin rounded-full  z-[1000] h-16 w-16 border-t-4 border-b-4 border-blue-600 border-t-transparent"></div>
+    </div>
+    }
+    <div className="container-fluid vh-100 z-1 d-flex flex-column">
       <div className="row flex-grow-1">
-        {/* Client panel */}
-        <div className="col-md-2 bg-dark text-light d-flex flex-column">
-          <img
-            src="/images/codecast.png"
-            alt="Logo"
-            className="img-fluid mx-auto"
-            style={{ maxWidth: "150px", marginTop: "-43px" }}
-          />
-          <hr style={{ marginTop: "-3rem" }} />
+        <div className="h-[100vh] col-md-2 bg-dark text-light d-flex flex-column">
+         <h1 className="h-[100px]">Welcome !!</h1>
+          <hr  />
 
-          {/* Client list container */}
-          <div className="d-flex flex-column flex-grow-1 overflow-auto">
-            <span className="mb-2">Members</span>
+          <div className="d-flex h-[90%] flex-column flex-grow-1 overflow-auto">
+            <span className="mb-2 " >Members</span>
             {clients.map((client) => (
               <Client key={client.socketId} username={client.username} />
             ))}
           </div>
 
           <hr />
-          {/* Buttons */}
           <div className="mt-auto mb-3">
             <button className="btn btn-success w-100 mb-2" onClick={copyRoomId}>
               Copy Room ID
@@ -154,9 +153,7 @@ function EditorPage() {
           </div>
         </div>
 
-        {/* Editor panel */}
         <div className="col-md-10 text-light d-flex flex-column">
-          {/* Language selector */}
           <div className="bg-dark p-2 d-flex justify-content-end">
             <select
               className="form-select w-auto"
@@ -177,11 +174,11 @@ function EditorPage() {
             onCodeChange={(code) => {
               codeRef.current = code;
             }}
+            lang={selectedLanguage}
           />
         </div>
       </div>
 
-      {/* Compiler toggle button */}
       <button
         className="btn btn-primary position-fixed bottom-0 end-0 m-3"
         onClick={toggleCompileWindow}
@@ -190,7 +187,6 @@ function EditorPage() {
         {isCompileWindowOpen ? "Close Compiler" : "Open Compiler"}
       </button>
 
-      {/* Compiler section */}
       <div
         className={`bg-dark text-light p-3 ${
           isCompileWindowOpen ? "d-block" : "d-none"
@@ -226,6 +222,7 @@ function EditorPage() {
         </pre>
       </div>
     </div>
+    </>
   );
 }
 

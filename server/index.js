@@ -28,14 +28,16 @@ const languageConfig = {
 };
 
 // Enable CORS
-app.use(cors());
-
+app.use(cors({
+  origin: "*", // Change this to a specific origin if needed
+  methods: ["GET", "POST"],
+}));
 // Parse JSON bodies
 app.use(express.json());
 
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: "*",
     methods: ["GET", "POST"],
   },
 });
@@ -54,13 +56,14 @@ const getAllConnectedClients = (roomId) => {
 
 io.on("connection", (socket) => {
   // console.log('Socket connected', socket.id);
-  socket.on(ACTIONS.JOIN, ({ roomId, username }) => {
+  socket.on("join", ({ roomId, username }) => {
     userSocketMap[socket.id] = username;
     socket.join(roomId);
+    console.log(userSocketMap)
     const clients = getAllConnectedClients(roomId);
     // notify that new user join
     clients.forEach(({ socketId }) => {
-      io.to(socketId).emit(ACTIONS.JOINED, {
+      io.to(socketId).emit("joined", {
         clients,
         username,
         socketId: socket.id,
@@ -111,6 +114,7 @@ const postSubmission = async (language_id, source_code, stdin) => {
   };
 
   const res = await axios.request(options);
+  console.log(res.data,"TOKENENNNNNNNNNNNNNN")
   return res.data.token
 }
 const languageMap = {
@@ -133,7 +137,6 @@ const getOutput = async (token) => {
 
   // call the api
   const res = await axios.request(options);
-  console.log(res.data)
   if (res.data.status_id <= 2) {
     const res2 = await getOutput(token);
     return res2.data;
@@ -148,28 +151,28 @@ const decode = (str) => {
   return Buffer.from(str, 'base64').toString()
 }
 app.post("/compile", async (req, res1) => {
-  const { code, language } = req.body;
-
-  try {
+    const { code, language } = req.body;
     const language_id = languageMap[language.toLowerCase()];
     const source_code = encode(code);
     const stdin = '';
     const token = await postSubmission(language_id,source_code,stdin);
-    const res = await getOutput(token);
-    const status_name = res.status.description;
-    const decoded_output = decode(res.stdout ? res.stdout : '');
-    console.log(decoded_output)
-    const decoded_compile_output = decode(res.compile_output ? res.compile_output : '');
-    const decoded_error = decode(res.stderr ? res.stderr : '');
+    if(token){
+      console.log(token)
+      const res = await getOutput(token);
+      if(res && res.stdout){
+        const decoded_output = decode(res.stdout ? res.stdout : '');
+        return res1.json(decoded_output);
+      }
+    }
+    return res1.json({error:"SDSDSDDDDDDDDDDDDDD"});
+
+    // const status_name = res.status.description;
+    // const decoded_compile_output = decode(res.compile_output ? res.compile_output : '');
+    // const decoded_error = decode(res.stderr ? res.stderr : '');
     
     // console.log(decoded_output)
     // call the api
-    console.log(decoded_output)
-    return res1.json(decoded_output);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to compile code" });
-  }
+
 });
 
 const PORT = process.env.PORT || 5000;

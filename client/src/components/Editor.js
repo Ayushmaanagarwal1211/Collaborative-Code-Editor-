@@ -1,14 +1,34 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import "codemirror/mode/javascript/javascript";
 import "codemirror/theme/dracula.css";
 import "codemirror/addon/edit/closetag";
 import "codemirror/addon/edit/closebrackets";
 import "codemirror/lib/codemirror.css";
 import CodeMirror from "codemirror";
-import { ACTIONS } from "../Actions";
 
-function Editor({ socketRef, roomId, onCodeChange }) {
+function Editor({ socketRef, roomId, onCodeChange,lang }) {
   const editorRef = useRef(null);
+  const text = useRef(null);
+
+  useEffect(()=>{
+    if(document && editorRef && editorRef.current){
+
+      if(lang=="python3"){
+        editorRef.current.setValue("print('Hello World')");
+        editorRef.current.focus()
+
+      }else if(lang=="nodejs"){
+        editorRef.current.setValue("console.log('Hello World1')");
+        editorRef.current.focus()
+
+      }else{
+        editorRef.current.setValue("");
+        editorRef.current.focus()
+
+      }
+    }
+    console.log(lang=="nodejs")
+  },[lang,editorRef.current])
   useEffect(() => {
     const init = async () => {
       const editor = CodeMirror.fromTextArea(
@@ -21,17 +41,15 @@ function Editor({ socketRef, roomId, onCodeChange }) {
           lineNumbers: true,
         }
       );
-      // for sync the code
       editorRef.current = editor;
-
+      editorRef.current.focus()
       editor.setSize(null, "100%");
       editorRef.current.on("change", (instance, changes) => {
-        // console.log("changes", instance ,  changes );
         const { origin } = changes;
-        const code = instance.getValue(); // code has value which we write
+        const code = instance.getValue();
         onCodeChange(code);
         if (origin !== "setValue") {
-          socketRef.current.emit(ACTIONS.CODE_CHANGE, {
+          socketRef.current.emit("conde-change", {
             roomId,
             code,
           });
@@ -42,23 +60,22 @@ function Editor({ socketRef, roomId, onCodeChange }) {
     init();
   }, []);
 
-  // data receive from server
   useEffect(() => {
     if (socketRef.current) {
-      socketRef.current.on(ACTIONS.CODE_CHANGE, ({ code }) => {
+      socketRef.current.on("conde-change", ({ code }) => {
         if (code !== null) {
           editorRef.current.setValue(code);
         }
       });
     }
     return () => {
-      socketRef.current.off(ACTIONS.CODE_CHANGE);
+      socketRef.current.off("conde-change");
     };
   }, [socketRef.current]);
 
   return (
     <div style={{ height: "600px" }}>
-      <textarea id="realtimeEditor"></textarea>
+      <textarea id="realtimeEditor"  ></textarea>
     </div>
   );
 }

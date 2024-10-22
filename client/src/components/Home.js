@@ -43,13 +43,8 @@ function Home() {
       <div className="row justify-content-center align-items-center min-vh-100">
         <div className="col-12 col-md-6">
           <div className="card shadow-sm p-2 mb-5 bg-secondary rounded">
+              <h1 className="text-white " style={{fontSize:"25px"}}>Collaborative Code Editor</h1>
             <div className="card-body text-center bg-dark">
-              <img
-                src="/images/codecast.png"
-                alt="Logo"
-                className="img-fluid mx-auto d-block"
-                style={{ maxWidth: "150px" }}
-              />
               <h4 className="card-title text-light mb-4">Enter the ROOM ID</h4>
 
               <div className="form-group">
